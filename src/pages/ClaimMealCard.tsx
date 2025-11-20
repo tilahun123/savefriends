@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface MealCard {
   id: string;
@@ -14,11 +15,14 @@ interface MealCard {
   campus: string;
   status: string;
   created_at: string;
+  taken_at: string | null;
 }
 
 const ClaimMealCard = () => {
   const [mealCards, setMealCards] = useState<MealCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUniversity, setSelectedUniversity] = useState<string>("all");
+  const [selectedCampus, setSelectedCampus] = useState<string>("all");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -30,7 +34,6 @@ const ClaimMealCard = () => {
     const { data, error } = await supabase
       .from("meal_cards")
       .select("*")
-      .eq("status", "available")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -82,6 +85,20 @@ const ClaimMealCard = () => {
     }
   };
 
+  // Get unique universities and campuses for filters
+  const universities = ["all", ...new Set(mealCards.map(card => card.university))];
+  const campuses = ["all", ...new Set(mealCards.map(card => card.campus))];
+
+  // Filter cards
+  const filteredCards = mealCards.filter(card => {
+    const universityMatch = selectedUniversity === "all" || card.university === selectedUniversity;
+    const campusMatch = selectedCampus === "all" || card.campus === selectedCampus;
+    return universityMatch && campusMatch;
+  });
+
+  const availableCards = filteredCards.filter(card => card.status === "available");
+  const claimedCards = filteredCards.filter(card => card.status === "taken");
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
@@ -101,48 +118,122 @@ const ClaimMealCard = () => {
               Claim a meal card to access the university cafeteria
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filters:</span>
+              </div>
+              <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Select university" />
+                </SelectTrigger>
+                <SelectContent>
+                  {universities.map((uni) => (
+                    <SelectItem key={uni} value={uni}>
+                      {uni === "all" ? "All Universities" : uni}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedCampus} onValueChange={setSelectedCampus}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Select campus" />
+                </SelectTrigger>
+                <SelectContent>
+                  {campuses.map((campus) => (
+                    <SelectItem key={campus} value={campus}>
+                      {campus === "all" ? "All Campuses" : campus}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
         </Card>
 
         {loading ? (
           <div className="text-center py-8">Loading...</div>
-        ) : mealCards.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No meal cards available at the moment. Check back later!
-            </CardContent>
-          </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {mealCards.map((card) => (
-              <Card key={card.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{card.university}</CardTitle>
-                      <CardDescription>{card.campus}</CardDescription>
-                    </div>
-                    <Badge variant="secondary">Available</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Meal Card Number</p>
-                    <p className="font-mono font-semibold">{card.meal_card_number}</p>
-                  </div>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Calendar className="mr-1 h-3 w-3" />
-                    Shared {new Date(card.created_at).toLocaleDateString()}
-                  </div>
-                  <Button
-                    onClick={() => handleClaim(card.id)}
-                    className="w-full"
-                  >
-                    Claim This Card
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <>
+            {/* Available Cards Section */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold mb-4">Available Cards</h2>
+              {availableCards.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    No meal cards available with the selected filters.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {availableCards.map((card) => (
+                    <Card key={card.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <CardTitle className="text-lg">{card.university}</CardTitle>
+                            <CardDescription>{card.campus}</CardDescription>
+                          </div>
+                          <Badge variant="secondary">Available</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Meal Card Number</p>
+                          <p className="font-mono font-semibold">{card.meal_card_number}</p>
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Calendar className="mr-1 h-3 w-3" />
+                          Shared {new Date(card.created_at).toLocaleDateString()}
+                        </div>
+                        <Button
+                          onClick={() => handleClaim(card.id)}
+                          className="w-full"
+                        >
+                          Claim This Card
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Claimed Cards Section */}
+            {claimedCards.length > 0 && (
+              <div>
+                <h2 className="text-2xl font-semibold mb-4">Claimed Cards</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {claimedCards.map((card) => (
+                    <Card key={card.id} className="opacity-75">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <CardTitle className="text-lg">{card.university}</CardTitle>
+                            <CardDescription>{card.campus}</CardDescription>
+                          </div>
+                          <Badge variant="outline">Claimed</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Meal Card Number</p>
+                          <p className="font-mono font-semibold blur-sm select-none">
+                            {card.meal_card_number}
+                          </p>
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Calendar className="mr-1 h-3 w-3" />
+                          Claimed {card.taken_at ? new Date(card.taken_at).toLocaleDateString() : 'Recently'}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
