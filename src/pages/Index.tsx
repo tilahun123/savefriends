@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Share2, UtensilsCrossed, LogOut } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import { ReactionGame } from "@/components/ReactionGame";
+import { GameLeaderboard } from "@/components/GameLeaderboard";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -129,6 +132,11 @@ const Index = () => {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <ReactionGame onScoreSubmitted={() => setLeaderboardRefresh(prev => prev + 1)} />
+          <GameLeaderboard refreshTrigger={leaderboardRefresh} />
+        </div>
       </div>
     </div>
   );
